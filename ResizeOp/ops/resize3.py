@@ -11,6 +11,9 @@ class ResizeFunc(torch.autograd.Function):
 
         shape = g.op("Shape", input)
         shape_float = g.op("Cast", shape, to_i=_C_onnx.TensorProtoDataType.FLOAT)
+        prefix_shape =  g.op("Slice", shape_float, 
+                g.op("Constant", value_t=torch.tensor([0], dtype=torch.int32)),
+                g.op("Constant", value_t=torch.tensor([2], dtype=torch.int32)))
         shape_short = g.op("Slice", shape_float, 
                            g.op("Constant", value_t=torch.tensor([2], dtype=torch.int32)),
                             g.op("Constant", value_t=torch.tensor([4], dtype=torch.int32)))
@@ -19,12 +22,14 @@ class ResizeFunc(torch.autograd.Function):
         shape_3 = g.op("Ceil", shape_1)
         shape_4 = g.op("Mul", shape_3, round_factor)
         shape_int =  g.op("Cast", shape_4, to_i=_C_onnx.TensorProtoDataType.INT64)
-
+        
+        shape_con = g.op("Concat", prefix_shape, shape_int,axis_i =-1)
+        shape_int_con =  g.op("Cast", shape_con, to_i=_C_onnx.TensorProtoDataType.INT64)
         return g.op("Resize",
                     input,
                     empty_placeholder,
                     empty_placeholder,
-                    shape_int,
+                    shape_int_con,
                     coordinate_transformation_mode_s="pytorch_half_pixel",
                     cubic_coeff_a_f=-0.75,
                     mode_s='cubic',
